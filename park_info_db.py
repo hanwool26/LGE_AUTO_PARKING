@@ -1,6 +1,5 @@
 import sqlite3
 import os
-
 def createTable():
     try:
         sql = 'create table if not exists ' \
