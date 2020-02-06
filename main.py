@@ -1,87 +1,63 @@
-import time
-from datetime import datetime
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import Select
-from selenium.webdriver.common.action_chains import ActionChains
-import pause
+from PyQt5.QtWidgets import *
+from PyQt5.uic import loadUi
+from PyQt5 import uic
 
-import macro_config as mc
+import park_info_db as PD # parking database
+import webDriver as WB # chrome web driver
 
-driver = webdriver.Chrome('/Users/User/PycharmProjects/auto_parking_reservation/chrome_driver/chromedriver')
-wait = WebDriverWait(driver, 10)
+class MyDlg():
+    info_data = None
+    def __init__(self):
+        self.dlg = loadUi('mainwindow.ui')
+        self.dlg.info_save.clicked.connect(self.saveClick)
+        self.dlg.register_park.clicked.connect(self.regClick)
+        self.dlg.qt_building_combo.addItems(["ISC", "SLC"])
+        self.dlg.show()
 
-year, month, date = 0,0,0
+        self.info_data = None if PD.selectTable() == None else list(PD.selectTable()[0])
+        if self.info_data == None:
+            self.dlg.qt_log.setText("주차 정보 저장 필요")
+        else :
+            self.dlg.qt_log.setText("주차 정보 저장 로딩 완료")
 
-def login_page():
-    driver.get(mc.main_url)
-    time.sleep(1)
-    id_elem = wait.until(EC.element_to_be_clickable((By.ID, "username")))
-    pass_elem = driver.find_element_by_id("password")
+    def save_info(self):
+        self.my_id = self.dlg.qt_id.text()
+        self.my_pw = self.dlg.qt_pw.text()
+        self.visitor = self.dlg.qt_visitor.text()
+        self.building = self.dlg.qt_building_combo.currentText()
+        self.phone_num = self.dlg.qt_phone.text()
+        self.company = self.dlg.qt_company.text()
+        self.vehicle_num = self.dlg.qt_vehicle.text()
+        self.reason = self.dlg.qt_reason.text()
 
-    id_elem.send_keys(mc.my_id)
-    pass_elem.send_keys(mc.my_pw)
+    def load_info_dlg(self):
+        if self.info_data != None:
+            self.dlg.qt_id.setText(self.info_data[0])
+            self.dlg.qt_pw.setText(self.info_data[1])
+            self.dlg.qt_visitor.setText(self.info_data[2])
+            self.dlg.qt_phone.setText(self.info_data[4])
+            self.dlg.qt_company.setText(self.info_data[5])
+            self.dlg.qt_vehicle.setText(self.info_data[6])
+            self.dlg.qt_reason.setText(self.info_data[7])
+            # assign actual value
+            self.save_info()
 
-    login_elem = driver.find_element_by_id("btnSubmit")
-    login_elem.click()
+    def saveClick(self):
+        self.save_info()
+        PD.createTable()
+        PD.inputData(self.my_id, self.my_pw, self.visitor, self.building, self.phone_num, self.company, self.vehicle_num, self.reason)
+        self.dlg.qt_log.setText("주차 정보 저장 완료")
 
-def park_page():
-    driver.get(mc.park_url)
-    time.sleep(1)
-    visitor_elem = driver.find_element(By.NAME, "visiterName")
-    visitor_elem.send_keys(mc.visitor)
+    def regClick(self):
+        self.dlg.qt_log.setText("주차 예약 진행")
+        self.wb = WB.WebDriver()
+        self.wb.login_page(self.my_id, self.my_pw)
+        date = self.dlg.qt_calendar.selectedDate().toString("yyyy.M.d")
+        self.wb.park_page(self.visitor, self.building, date.split('.'), self.phone_num, self.company, self.vehicle_num, self.reason)
 
-    budilding_elem = Select(driver.find_element_by_name('buildingId'))
-    budilding_elem.select_by_visible_text(mc.building)
-
-    phone_elem = driver.find_element(By.NAME, "visiterPhone")
-    phone_elem.send_keys(mc.phone_num)
-
-    company_elem = driver.find_element(By.NAME, "visiterCompany")
-    company_elem.send_keys(mc.company)
-
-    datepicker = driver.find_element_by_name("startDate")
-    datepicker.click()
-
-    selectYear = driver.find_element_by_xpath('//select[@class="ui-datepicker-year"]')
-    for option in selectYear.find_elements_by_tag_name('option'):
-        if option.text == '2020':
-            option.click()
-            break
-
-    selectMonth = driver.find_element_by_xpath('//select[@class="ui-datepicker-month"]')
-    for option in selectMonth.find_elements_by_tag_name('option'):
-        if option.text == '2':
-            option.click()
-            break
-
-    days = driver.find_elements_by_xpath('//a[@class="ui-state-default"]')
-    for i in range(len(days)):
-        if days[i].text == '5':
-            days[i].click()
-            break
-
-    vehicleNum_elem = driver.find_element(By.NAME, "carNo")
-    vehicleNum_elem.send_keys(mc.vehicle_num)
-
-    reason_elem = driver.find_element(By.NAME, "parkingComment")
-    reason_elem.send_keys(mc.reason)
-
-    save_elem = driver.find_element(By.NAME, "save")
-    driver.implicitly_wait(10)
-
-    ActionChains(driver).move_to_element(save_elem).click(save_elem).perform()
-
-def close_driver():
-    driver.close()
-    driver.quit()
-
-login_page()
-driver.implicitly_wait(3)
-park_page()
-time.sleep(3)
-# close_driver()
-
+if __name__ == "__main__":
+    import sys
+    app = QApplication(sys.argv)
+    dlg = MyDlg()
+    dlg.load_info_dlg()
+    app.exec()
