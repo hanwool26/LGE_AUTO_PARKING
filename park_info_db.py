@@ -1,4 +1,5 @@
 import sqlite3
+import os
 def createTable():
     try:
         sql = 'create table if not exists ' \
@@ -34,14 +35,17 @@ def inputData(my_id, my_pw, visitor, building, phone_num, company, vehicle_num, 
     insertTable(my_id, my_pw, visitor, building, phone_num, company, vehicle_num, reason)
 
 def selectTable():
-    try:
-        sql = "select * from park_info"
-        db = sqlite3.connect('lge_park_info.db')
-        cur = db.cursor()
-        cur.execute( sql )
-        data = cur.fetchall()
-        db.close()
-        return data
-    except Exception as err:
-        print("에러", err)
-        return None
+    if os.path.isfile('lge_park_info.db'):
+        try:
+            sql = "select * from park_info"
+            db = sqlite3.connect('lge_park_info.db')
+            cur = db.cursor()
+            cur.execute( sql )
+            data = cur.fetchall()
+            db.close()
+            return data
+        except Exception as err:
+            print("에러", err)
+            return None
+        else :
+            return None
